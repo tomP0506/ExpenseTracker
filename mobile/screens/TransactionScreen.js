@@ -3,7 +3,7 @@ import { useTransaction } from '../context/TransactionContext';
 
 
 export default function TransactionScreen({ navigation }){
-    const {transactions, loading, error, assignCategory} = useTransaction();
+    const {transactions, loading, error, refreshing, refresh, assignCategory} = useTransaction();
 
     if (loading){
         return (
@@ -26,6 +26,8 @@ export default function TransactionScreen({ navigation }){
             <FlatList
                 data={transactions}
                 keyExtractor={(item) => String(item.id)}
+                refreshing={refreshing}
+                onRefresh={refresh}
                 renderItem={({item}) => (
                     <Pressable
                         style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
