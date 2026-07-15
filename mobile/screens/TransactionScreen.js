@@ -1,9 +1,11 @@
 import { StyleSheet, Text, View, FlatList, Pressable, ActivityIndicator } from 'react-native';
 import { useTransaction } from '../context/TransactionContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
 export default function TransactionScreen({ navigation }){
     const {transactions, loading, error, refreshing, refresh, assignCategory} = useTransaction();
+    const insets = useSafeAreaInsets();
 
     if (loading){
         return (
@@ -20,6 +22,11 @@ export default function TransactionScreen({ navigation }){
             </View>
         );
     }
+
+    const totals = transactions.reduce((acc, t) => {
+        acc[t.category] = (acc[t.category] || 0) + t.amount;
+        return acc;
+    }, {});
 
     return (
         <View style={styles.container}>
@@ -51,6 +58,14 @@ export default function TransactionScreen({ navigation }){
                     </Pressable>
                 )}
             />
+            <View style={[styles.summary, {paddingBottom: 16 + insets.bottom}]}>
+                {Object.entries(totals).map(([category, total]) => (
+                    <View key={category} style={styles.totalRow}>
+                        <Text style={styles.totalLabel}>{category}</Text>
+                        <Text style={styles.totalAmount}>${total.toFixed(2)}</Text>
+                    </View>
+                ))}
+            </View>
         </View>
     );
 }
@@ -100,5 +115,23 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         padding: 16,
+    },
+    summary: {
+        padding: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#ddd',
+        backgroundColor: '#fafafa',
+    },
+    totalRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginVertical: 2,
+    },
+    totalLabel: {
+        fontSize: 15,
+        fontWeight: '600',
+    },
+    totalAmount: {
+        fontSize: 15,
     },
 });
