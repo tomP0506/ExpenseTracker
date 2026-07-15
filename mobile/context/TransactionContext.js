@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { Alert } from "react-native";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../lib/supabase";
+import { supabase } from "../lib/supabase";
 
 const TransactionContext = createContext();
 
@@ -10,33 +11,20 @@ export function TransactionProvider({children}){
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
 
-    // useEffect(() => {
     async function loadTransactions() {
-        try {
-            const response = await fetch(
-                `${SUPABASE_URL}/rest/v1/transactions?select=*&order=id.asc`,
-                {
-                    headers: {
-                        apikey: SUPABASE_ANON_KEY,
-                        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-                    },
-                }
-            );
+        const {data, error} = await supabase
+            .from('transactions')
+            .select('*')
+            .order('id', {ascending: true});
 
-            if(!response.ok) {
-                throw new Error(`Request failed with status ${response.status}`);
-            }
-
-            const data = await response.json();
-            setTransactions(data.map((t) => ({...t, amount: Number(t.amount)})));
+        if (error) {
+            setError(error.message);
+        }
+        else{
+            setTransactions(data.map((t) => ({ ...t, amount: Number(t.amount)})));
             setError(null);
-        } catch (e){
-            setError(e.message);
-        } 
+        }
     }
-        
-    //     loadTransactions();
-    // }, []);
 
     useEffect(() => {
         async function initialLoad() {
@@ -61,26 +49,14 @@ export function TransactionProvider({children}){
             transactions.map((t) => (t.id == id ? { ...t, category} : t))
         );
 
-        try{
-            const response = await fetch(
-                `${SUPABASE_URL}/rest/v1/transactions?id=eq.${id}`,
-                {
-                    method: 'PATCH',
-                    headers: {
-                        apikey: SUPABASE_ANON_KEY,
-                        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-                        'Content-Type': `application/json`,
-                    },
-                    body: JSON.stringify({category}),
-                }
-            );
+        const {error} = await supabase
+            .from('transactions')
+            .update({category})
+            .eq('id', id);
 
-            if (!response.ok){
-                throw new Error(`Update failed with status ${response.status}`);
-            }
-        } catch(e){
-            setTransactions(previousTransactions); //undo optimistic
-            Alert.alert('Could not save', 'Your change was undone. Please try again.');
+        if (error) {
+            setTransactions(previousTransactions);
+            Alert.alert('Could not save', 'Your save was undone. Please try again.');
         }
     }
 
