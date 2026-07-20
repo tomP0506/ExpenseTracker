@@ -60,9 +60,28 @@ export function TransactionProvider({children}){
         }
     }
 
+    async function syncTransactions() {
+        const {data, error} = await supabase.functions.invoke('sync-transactions');
+        if (error) {
+            Alert.alert('Sync failed', "Check the function logs in Supabase");
+            return;
+        }
+        await loadTransactions();
+        Alert.alert('Synced', `Pulled ${data.synced} transactions.`);
+    }
+
+    async function connectBank() {
+        const {data, error} = await supabase.functions.invoke('plaid-link-sandbox');
+        if (error) {
+            Alert.alert('Connection failed', 'Check the function logs in Supabase for details');
+            return;
+        }
+        await syncTransactions();
+    }
+
     return (
         <TransactionContext.Provider
-            value={{transactions, loading, error, refreshing, refresh, assignCategory}}
+            value={{transactions, loading, error, refreshing, refresh, assignCategory, connectBank, syncTransactions}}
         >
             {children}
         </TransactionContext.Provider>

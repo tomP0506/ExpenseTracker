@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
 export default function TransactionScreen({ navigation }){
-    const {transactions, loading, error, refreshing, refresh, assignCategory} = useTransaction();
+    const {transactions, loading, error, refreshing, refresh, assignCategory, connectBank, syncTransactions} = useTransaction();
     const insets = useSafeAreaInsets();
 
     if (loading){
@@ -59,12 +59,19 @@ export default function TransactionScreen({ navigation }){
                 )}
             />
             <View style={[styles.summary, {paddingBottom: 16 + insets.bottom}]}>
+                
                 {Object.entries(totals).map(([category, total]) => (
                     <View key={category} style={styles.totalRow}>
                         <Text style={styles.totalLabel}>{category}</Text>
                         <Text style={styles.totalAmount}>${total.toFixed(2)}</Text>
                     </View>
                 ))}
+                <Pressable style={styles.connectButton} onPress={connectBank}>
+                    <Text style={styles.connectButtonText}>Connect a test Bank</Text>
+                </Pressable>
+                <Pressable style={styles.connectButton} onPress={syncTransactions}>
+                    <Text style={styles.connectButtonText}>Sync Transactions</Text>
+                </Pressable>
             </View>
         </View>
     );
@@ -133,5 +140,17 @@ const styles = StyleSheet.create({
     },
     totalAmount: {
         fontSize: 15,
+    },
+    connectButton: {
+        backgroundColor: '#4a6da7',
+        padding: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginTop: 12,
+    },
+    connectButtonText: {
+        color: '#fff',
+        fontSize: 15,
+        fontWeight: '600',
     },
 });
