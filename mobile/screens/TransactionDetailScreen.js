@@ -3,7 +3,7 @@ import { useTransaction } from "../context/TransactionContext";
 
 export default function TransactionDetailScreen({route}){
     const {id} = route.params;
-    const {transactions, assignCategory} = useTransaction();
+    const {transactions, assignCategory, categories, categoryName} = useTransaction();
 
     const transaction = transactions.find((t) => t.id === id)
 
@@ -11,15 +11,14 @@ export default function TransactionDetailScreen({route}){
         <View style={styles.container}>
             <Text style={styles.title}>{transaction.description}</Text>
             <Text style={styles.amount}>${transaction.amount.toFixed(2)}</Text>
-            <Text style={styles.category}>Category: {transaction.category}</Text>
+            <Text style={styles.category}>Category: {categoryName(transaction.category_id)}</Text>
 
             <View style={styles.chipRow}>
-                <Pressable style={styles.chip} onPress={() => assignCategory(id, 'Personal')}>
-                    <Text style={styles.chipText}>Personal</Text>
-                </Pressable>
-                <Pressable style={styles.chip} onPress={() => assignCategory(id, 'Family')}>
-                    <Text style={styles.chipText}>Family</Text>
-                </Pressable>
+                {categories.map((cat) => (
+                    <Pressable key={cat.id} style={styles.chip} onPress={() => assignCategory(id, cat.id)}>
+                        <Text style={styles.chipText}>{cat.name}</Text>
+                    </Pressable>
+                ))}
             </View>
         </View>
     )
@@ -48,6 +47,8 @@ const styles = StyleSheet.create({
     },
     chipRow: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent:'center',
         gap: 12,
     },
     chip: {

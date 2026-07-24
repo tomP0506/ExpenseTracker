@@ -1,15 +1,39 @@
-import { View, ActivityIndicator, Pressable, Text } from "react-native";
-import { supabase } from "./lib/supabase";
+import { View, ActivityIndicator } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import {createBottomTabNavigator} from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { TransactionProvider } from "./context/TransactionContext";
 import AuthScreen from "./screens/AuthScreens";
 import TransactionScreen from "./screens/TransactionScreen";
 import TransactionDetailScreen from "./screens/TransactionDetailScreen";
+import CategoriesScreen from "./screens/CategoriesScreen";
+import AccountScreen from "./screens/AccountScreen";
+import CategoryDetailScreen from "./screens/CategoryDetailScreen";
 
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
+
+function TransactionsStack(){
+  return (
+    <Stack.Navigator>
+      <Stack.Screen name="Transactions" component={TransactionScreen} />
+      <Stack.Screen name="TransactionDetail" component={TransactionDetailScreen} />
+    </Stack.Navigator>
+  )
+}
+
+function CategoryStack(){
+  return (
+    <Stack.Navigator>
+      <Stack.Screen name="CategoriesList" component={CategoriesScreen} options={{title: 'Categories'}} />
+      <Stack.Screen name="CategoryDetail" component={CategoryDetailScreen}/>
+      <Stack.Screen name="TransactionDetail" component={TransactionDetailScreen}/>
+     </Stack.Navigator>
+  )
+}
 
 function AppContent(){
   const {session, loading} = useAuth();
@@ -29,20 +53,32 @@ function AppContent(){
   return (
     <TransactionProvider>
       <NavigationContainer>
-        <Stack.Navigator>
-          <Stack.Screen 
-            name="Transactions" 
-            component={TransactionScreen}
+        <Tab.Navigator screenOptions={{headerShown: false}}>
+          <Tab.Screen
+            name="TransactionsTab"
+            component={TransactionsStack}
             options={{
-              headerRight: () => (
-                <Pressable onPress={() => supabase.auth.signOut()}>
-                  <Text style={{color: '#4a6da7', fontSize: 16}}>Sign out</Text>
-                </Pressable>
-              )
+              title: "Transactions",
+              tabBarIcon: ({color, size}) => <Ionicons name="list" color={color} size={size}/>
             }}
-            />
-          <Stack.Screen name="TransactionDetail" component={TransactionDetailScreen} />
-        </Stack.Navigator>
+          />
+          <Tab.Screen
+            name="CategoriesTab"
+            component={CategoryStack}
+            options={{
+              title: "Categories",
+              tabBarIcon: ({color, size}) => <Ionicons name="pricetags" color={color} size={size}/>
+            }}
+          />
+          <Tab.Screen
+            name="Account"
+            component={AccountScreen}
+            options={{
+              headerShown: true,
+              tabBarIcon: ({color, size}) => <Ionicons name="person" color={color} size={size}/>
+            }}
+          />
+        </Tab.Navigator>
       </NavigationContainer>
     </TransactionProvider>
   );

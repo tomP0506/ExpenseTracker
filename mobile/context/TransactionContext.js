@@ -10,6 +10,7 @@ export function TransactionProvider({children}){
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
+    const [categories, setCategories] = useState([]);
 
     async function loadTransactions() {
         const {data, error} = await supabase
@@ -26,10 +27,26 @@ export function TransactionProvider({children}){
         }
     }
 
+    async function loadCategories() {
+        const {data, error} = await supabase.from('categories').select('*').order('id');
+        // console.log('loadCategories →', { data, error });
+        if(!error) setCategories(data);
+    }
+
+    async function clearCategory(categoryId) {
+        const {error} = await supabase.from('transactions').delete().eq('category_id', categoryId);
+        if(error){
+            Alert.alert('Could not clear', error.message);
+            return;
+        }
+
+        await loadTransactions();
+    }
+
     useEffect(() => {
         async function initialLoad() {
             setLoading(true);
-            await loadTransactions();
+            await Promise.all([loadTransactions(),loadCategories()]);
             setLoading(false);
         }
         initialLoad();
@@ -41,23 +58,54 @@ export function TransactionProvider({children}){
         setRefreshing(false);
     }
 
-    async function assignCategory(id, category) {
+    async function addCategory(name) {
+        const {data} = await supabase.from('categories').select('id').eq('name', name);
+        if(data &&  data.length > 0){
+            Alert.alert('Name already exists');
+            return;
+        }
+        const {error} = await supabase.from('categories').insert({name});
+        if(error){
+            Alert.alert('Could not add category', error.message);
+            return;
+        }
+        await loadCategories();
+    }
+
+    async function assignCategory(id, categoryId) {
         const previousTransactions = transactions;
 
         //optimistic
         setTransactions(
-            transactions.map((t) => (t.id == id ? { ...t, category} : t))
+            transactions.map((t) => (t.id == id ? { ...t, category_id: categoryId} : t))
         );
 
         const {error} = await supabase
             .from('transactions')
-            .update({category})
+            .update({category_id: categoryId})
             .eq('id', id);
 
         if (error) {
             setTransactions(previousTransactions);
             Alert.alert('Could not save', 'Your save was undone. Please try again.');
         }
+
+        
+    }
+
+    function categoryName(categoryId){
+        if(!categoryId) return 'Uncategorized';
+        return categories.find((c) => c.id === categoryId)?.name ?? 'Uncategorized';
+    }
+
+    async function deleteCategory(id) {
+        const {error} = await supabase.from('categories').delete().eq('id', id);
+        if (error){
+            Alert.alert('Could not delete category', error.message);
+            return;
+        }
+        await loadCategories();
+        await loadTransactions();
     }
 
     async function syncTransactions() {
@@ -81,7 +129,7 @@ export function TransactionProvider({children}){
 
     return (
         <TransactionContext.Provider
-            value={{transactions, loading, error, refreshing, refresh, assignCategory, connectBank, syncTransactions}}
+            value={{transactions, loading, error, refreshing, refresh, assignCategory, connectBank, syncTransactions, categories, addCategory, categoryName, deleteCategory, clearCategory}}
         >
             {children}
         </TransactionContext.Provider>

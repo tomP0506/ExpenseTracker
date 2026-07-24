@@ -2,6 +2,7 @@ import {createClient} from "https://esm.sh/@supabase/supabase-js@2";
 import { error } from "node:console";
 import { access } from "node:fs";
 import { json } from "node:stream/consumers";
+import { it } from "node:test";
 
 const PLAID_CLIENT_ID = Deno.env.get("PLAID_CLIENT_ID")!;
 const PLAID_SECRET = Deno.env.get("PLAID_SECRET")!;
@@ -26,12 +27,12 @@ Deno.serve(async (req) => {
     
     const {data: items} = await supabaseAdmin
       .from("plaid_items")
-      .select("access_token")
+      .select("id, access_token, cursor")
       .eq("user_id", user.id);
 
     const rows: any[] = [];
     for(const item of items ?? []){
-      let cursor = undefined;
+      let cursor = item.cursor ?? undefined;
       let hasMore = true;
       while(hasMore){
         const res = await fetch(`${PLAID_BASE}/transactions/sync`, {
@@ -63,6 +64,8 @@ Deno.serve(async (req) => {
         hasMore = data.hasMore;
         cursor = data.next_cursor;
       }
+
+      await supabaseAdmin.from("plaid_items").update({cursor}).eq("id", item.id);
     }
     if (rows.length > 0){
       const {error} = await supabaseAdmin

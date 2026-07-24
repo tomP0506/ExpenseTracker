@@ -2,9 +2,11 @@ import { StyleSheet, Text, View, FlatList, Pressable, ActivityIndicator } from '
 import { useTransaction } from '../context/TransactionContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import Animated, {FadeOut, LinearTransition, FadeIn} from 'react-native-reanimated';
+
 
 export default function TransactionScreen({ navigation }){
-    const {transactions, loading, error, refreshing, refresh, assignCategory, connectBank, syncTransactions} = useTransaction();
+    const {transactions, loading, error, refreshing, refresh, assignCategory, connectBank, syncTransactions, categories, categoryName} = useTransaction();
     const insets = useSafeAreaInsets();
 
     if (loading){
@@ -23,49 +25,59 @@ export default function TransactionScreen({ navigation }){
         );
     }
 
-    const totals = transactions.reduce((acc, t) => {
-        acc[t.category] = (acc[t.category] || 0) + t.amount;
-        return acc;
-    }, {});
+    // const totals = transactions.reduce((acc, t) => {
+    //     const name = categoryName(t.category_id);
+    //     acc[name] = (acc[name] || 0) + t.amount;
+    //     return acc;
+    // }, {});
+
+    const uncategorized = transactions.filter((t) => t.category_id === null);
+    const uncategorizedTotal = uncategorized.reduce((sum, t) => sum + t.amount, 0);
 
     return (
         <View style={styles.container}>
             <FlatList
-                data={transactions}
+                data={uncategorized}
                 keyExtractor={(item) => String(item.id)}
                 refreshing={refreshing}
                 onRefresh={refresh}
                 renderItem={({item}) => (
-                    <Pressable
-                        style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-                        onPress={() => 
-                            navigation.navigate('TransactionDetail', {id: item.id})
-                        }
-                    >
-                        <View>
-                            <Text style={styles.description}>{item.description}</Text>
-                            <Text style={styles.category}>{item.category}</Text>
-                            <View style={styles.chipRow}>
-                                <Pressable style={styles.chip} onPress={() => assignCategory(item.id, 'Personal')}>
-                                    <Text style={styles.chipText}>Personal</Text>
-                                </Pressable>
-                                <Pressable style={styles.chip} onPress={() => assignCategory(item.id, 'Family')}>
-                                    <Text style={styles.chipText}>Family</Text>
-                                </Pressable>
+                    <Animated.View exiting={FadeOut} entering={FadeIn} layout={LinearTransition}>
+                        <Pressable
+                            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+                            onPress={() => 
+                                navigation.navigate('TransactionDetail', {id: item.id})
+                            }
+                        >
+                            <View style={styles.info}>
+                                <Text style={styles.description}>{item.description}</Text>
+                                {/* <Text style={styles.category}>{categoryName(item.category_id)}</Text> */}
+                                <View style={styles.chipRow}>
+                                    {categories.map((cat) => (
+                                        <Pressable key={cat.id} style={styles.chip} onPress={() => assignCategory(item.id, cat.id)}>
+                                            <Text style={styles.chipText}>{cat.name}</Text>
+                                        </Pressable>
+                                    ))}
+                                </View>
                             </View>
-                        </View>
-                        <Text style={styles.amount}>${item.amount.toFixed(2)}</Text>
-                    </Pressable>
+                            <Text style={styles.amount}>${item.amount.toFixed(2)}</Text>
+                        </Pressable>
+                    </Animated.View>
                 )}
             />
-            <View style={[styles.summary, {paddingBottom: 16 + insets.bottom}]}>
+            <View style={[styles.summary, {paddingBottom: 16}]}>
                 
-                {Object.entries(totals).map(([category, total]) => (
+                {/* {Object.entries(totals).map(([category, total]) => (
                     <View key={category} style={styles.totalRow}>
                         <Text style={styles.totalLabel}>{category}</Text>
                         <Text style={styles.totalAmount}>${total.toFixed(2)}</Text>
                     </View>
-                ))}
+                ))} */}
+                {/* <Text style={styles.summaryTotal}>Uncategorized total: ${uncategorizedTotal.toFixed(2)}</Text> */}
+                <View style={styles.totalRow}>
+                    <Text style={styles.totalLabel}>Uncategorized Total({uncategorized.length}):</Text>
+                    <Text style={styles.totalAmount}>${uncategorizedTotal.toFixed(2)}</Text>
+                </View>
                 <Pressable style={styles.connectButton} onPress={connectBank}>
                     <Text style={styles.connectButtonText}>Connect a test Bank</Text>
                 </Pressable>
@@ -84,12 +96,14 @@ const styles = StyleSheet.create({
     row: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'flex-start',
         padding: 16,
         borderBottomWidth: 1,
         borderBottomColor: '#eee',
     },
     description: {
         fontSize: 16,
+        paddingBottom: 8,
     },
     amount: {
         fontSize: 16,
@@ -105,6 +119,7 @@ const styles = StyleSheet.create({
     },
     chipRow: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         gap: 8,
         marginTop: 8,
     },
@@ -141,6 +156,11 @@ const styles = StyleSheet.create({
     totalAmount: {
         fontSize: 15,
     },
+    // summaryTotal: {
+    //     fontSize: 16,
+    //     fontWeight: '600',
+    //     marginBottom: 8,
+    // },
     connectButton: {
         backgroundColor: '#4a6da7',
         padding: 12,
@@ -152,5 +172,9 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 15,
         fontWeight: '600',
+    },
+    info: {
+        flex: 1,
+        marginRight: 12,
     },
 });
