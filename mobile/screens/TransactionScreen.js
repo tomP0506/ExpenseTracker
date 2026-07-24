@@ -51,7 +51,7 @@ export default function TransactionScreen({ navigation }){
                         >
                             <View style={styles.info}>
                                 <Text style={styles.description}>{item.description}</Text>
-                                {/* <Text style={styles.category}>{categoryName(item.category_id)}</Text> */}
+                                <Text style={styles.date}>{item.posted_at}</Text>
                                 <View style={styles.chipRow}>
                                     {categories.map((cat) => (
                                         <Pressable key={cat.id} style={styles.chip} onPress={() => assignCategory(item.id, cat.id)}>
@@ -60,7 +60,9 @@ export default function TransactionScreen({ navigation }){
                                     ))}
                                 </View>
                             </View>
-                            <Text style={styles.amount}>${item.amount.toFixed(2)}</Text>
+                            <Text style={[styles.amount, item.amount < 0 && styles.credit]}>
+                                {item.amount < 0 ? '+' : ''}${Math.abs(item.amount.toFixed(2))}
+                            </Text>
                         </Pressable>
                     </Animated.View>
                 )}
@@ -177,4 +179,11 @@ const styles = StyleSheet.create({
         flex: 1,
         marginRight: 12,
     },
+    date: {
+        fontSize: 12,
+        color: '#999',
+    },
+    credit: {
+        color: '#2e7d32'
+    }
 });

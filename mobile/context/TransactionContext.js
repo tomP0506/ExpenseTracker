@@ -16,7 +16,7 @@ export function TransactionProvider({children}){
         const {data, error} = await supabase
             .from('transactions')
             .select('*')
-            .order('id', {ascending: true});
+            .order('posted_at', {ascending: false, nullsFirst: false});
 
         if (error) {
             setError(error.message);
@@ -28,7 +28,7 @@ export function TransactionProvider({children}){
     }
 
     async function loadCategories() {
-        const {data, error} = await supabase.from('categories').select('*').order('id');
+        const {data, error} = await supabase.from('categories').select('*').order('id', {ascending: false, nullsFirst: false});
         // console.log('loadCategories →', { data, error });
         if(!error) setCategories(data);
     }
