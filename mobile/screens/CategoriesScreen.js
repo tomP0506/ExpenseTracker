@@ -4,7 +4,7 @@ import { useTransaction } from '../context/TransactionContext';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function CategoriesScreen({navigation}) {
-    const {transactions, categories, addCategory, deleteCategory } = useTransaction();
+    const {transactions, categories, addCategory, deleteCategory, visibleTransactions } = useTransaction();
     const [newName, setNewName] = useState('');
 
     function handleAdd(){
@@ -27,7 +27,7 @@ export default function CategoriesScreen({navigation}) {
 
 
     function totalFor(categoryId){
-        return transactions
+        return visibleTransactions
             .filter((t) => t.category_id === categoryId)
             .reduce((sum, t) => sum + t.amount, 0);
     }

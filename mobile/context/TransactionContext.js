@@ -11,6 +11,14 @@ export function TransactionProvider({children}){
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
     const [categories, setCategories] = useState([]);
+    const [accounts, setAccounts] = useState([]);
+
+    async function loadAccounts() {
+        const {data, error} = await supabase.from('accounts').select('*').order('name').order('id');
+        if(!error){
+            setAccounts(data.map((a) => ({...a, current_balance: Number(a.current_balance)})));
+        }
+    }
 
     async function loadTransactions() {
         const {data, error} = await supabase
@@ -25,6 +33,23 @@ export function TransactionProvider({children}){
             setTransactions(data.map((t) => ({ ...t, amount: Number(t.amount)})));
             setError(null);
         }
+    }
+
+    async function toggleAccountHidden(account) {
+        const {error} = await supabase
+            .from('accounts')
+            .update({hidden: !account.hidden})
+            .eq('id', account.id);
+        
+        if (error){
+            Alert.alert('Could not update', error.message);
+            return;
+        }
+        await loadAccounts()
+    }
+
+    function accountMask(accountId){
+        return accounts.find((a) => a.account_id === accountId)?.mask;
     }
 
     async function loadCategories() {
@@ -46,7 +71,7 @@ export function TransactionProvider({children}){
     useEffect(() => {
         async function initialLoad() {
             setLoading(true);
-            await Promise.all([loadTransactions(),loadCategories()]);
+            await Promise.all([loadTransactions(),loadCategories(), loadAccounts()]);
             setLoading(false);
         }
         initialLoad();
@@ -115,6 +140,7 @@ export function TransactionProvider({children}){
             return;
         }
         await loadTransactions();
+        await loadAccounts();
         Alert.alert('Synced', `Pulled ${data.synced} transactions.`);
     }
 
@@ -127,9 +153,13 @@ export function TransactionProvider({children}){
         await syncTransactions();
     }
 
+    const hiddenAccountIds = accounts.filter((a) => a.hidden).map((a) => a.account_id);
+    const visibleTransactions = transactions.filter((t) => !hiddenAccountIds.includes(t.account_id));
+
+
     return (
         <TransactionContext.Provider
-            value={{transactions, loading, error, refreshing, refresh, assignCategory, connectBank, syncTransactions, categories, addCategory, categoryName, deleteCategory, clearCategory}}
+            value={{transactions, loading, error, refreshing, refresh, assignCategory, connectBank, syncTransactions, categories, addCategory, categoryName, deleteCategory, clearCategory, accounts, visibleTransactions, toggleAccountHidden, accountMask}}
         >
             {children}
         </TransactionContext.Provider>

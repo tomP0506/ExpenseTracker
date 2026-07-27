@@ -4,10 +4,10 @@ import { useTransaction } from '../context/TransactionContext';
 
 export default function CategoryDetailScreen({route, navigation}){
     const {categoryId} = route.params;
-    const {transactions, categoryName, clearCategory} = useTransaction();
+    const {transactions, categoryName, clearCategory, visibleTransactions} = useTransaction();
 
     const name = categoryName(categoryId);
-    const charges = transactions.filter((t) => t.category_id == categoryId);
+    const charges = visibleTransactions.filter((t) => t.category_id == categoryId);
     const total = charges.reduce((sum, t) => sum + t.amount, 0);
 
     useLayoutEffect(() => {

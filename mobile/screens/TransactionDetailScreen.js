@@ -12,6 +12,7 @@ export default function TransactionDetailScreen({route}){
             <Text style={styles.title}>{transaction.description}</Text>
             <Text style={styles.amount}>${transaction.amount.toFixed(2)}</Text>
             <Text style={styles.category}>Category: {categoryName(transaction.category_id)}</Text>
+            <Text style={styles.category}>{transaction.posted_at}</Text>
 
             <View style={styles.chipRow}>
                 {categories.map((cat) => (

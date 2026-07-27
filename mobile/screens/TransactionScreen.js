@@ -6,7 +6,7 @@ import Animated, {FadeOut, LinearTransition, FadeIn} from 'react-native-reanimat
 
 
 export default function TransactionScreen({ navigation }){
-    const {transactions, loading, error, refreshing, refresh, assignCategory, connectBank, syncTransactions, categories, categoryName} = useTransaction();
+    const {transactions, loading, error, refreshing, refresh, assignCategory, connectBank, syncTransactions, categories, categoryName, visibleTransactions, accountMask} = useTransaction();
     const insets = useSafeAreaInsets();
 
     if (loading){
@@ -31,7 +31,7 @@ export default function TransactionScreen({ navigation }){
     //     return acc;
     // }, {});
 
-    const uncategorized = transactions.filter((t) => t.category_id === null);
+    const uncategorized = visibleTransactions.filter((t) => t.category_id === null);
     const uncategorizedTotal = uncategorized.reduce((sum, t) => sum + t.amount, 0);
 
     return (
@@ -51,7 +51,7 @@ export default function TransactionScreen({ navigation }){
                         >
                             <View style={styles.info}>
                                 <Text style={styles.description}>{item.description}</Text>
-                                <Text style={styles.date}>{item.posted_at}</Text>
+                                <Text style={styles.date}>{item.posted_at} {accountMask(item.account_id) ? ` · ••${accountMask(item.account_id)}` : ''}</Text>
                                 <View style={styles.chipRow}>
                                     {categories.map((cat) => (
                                         <Pressable key={cat.id} style={styles.chip} onPress={() => assignCategory(item.id, cat.id)}>
