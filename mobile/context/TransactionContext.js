@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useMemo } from "react";
 import { Alert } from "react-native";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../lib/supabase";
 import { supabase } from "../lib/supabase";
@@ -153,13 +153,38 @@ export function TransactionProvider({children}){
         await syncTransactions();
     }
 
-    const hiddenAccountIds = accounts.filter((a) => a.hidden).map((a) => a.account_id);
-    const visibleTransactions = transactions.filter((t) => !hiddenAccountIds.includes(t.account_id));
+    async function disconnectBank(itemId) {
+        const {error} = await supabase.functions.invoke('disconnect-bank',{
+            body: {item_id: itemId},
+        });
+        // console.log('disconnect ->', {itemId, data, error}); // TEMP
+        if (error) {
+            Alert.alert('Could not disconnect', 'Check the function logs in supabase.');
+            return;
+        }
+        await Promise.all([loadAccounts(), loadTransactions()]);
+    }
+
+    // const accountTypeById = Object.fromEntries(accounts.map((a) => [a.account_id, a.type]));
+    // const normalized = transactions.map((t) => 
+    //     accountTypeById[t.account_id] === 'depository' ? { ...t, amount: -t.amount} : t
+    // );
+
+    // const hiddenAccountIds = accounts.filter((a) => a.hidden).map((a) => a.account_id);
+    // const visibleTransactions = normalized.filter((t) => !hiddenAccountIds.includes(t.account_id));
+
+    const visibleTransactions = useMemo(() => {
+        const typeById = Object.fromEntries(accounts.map((a) => [a.account_id, a.type]));
+        const hiddenIds = accounts.filter((a) => a.hidden).map((a) => a.account_id);
+        return transactions
+            .filter((t) => !hiddenIds.includes(t.account_id))
+            .map((t) => (typeById[t.account_id] === 'depository' ? {...t, amount: -t.amount} : t))
+    }, [transactions, accounts]);
 
 
     return (
         <TransactionContext.Provider
-            value={{transactions, loading, error, refreshing, refresh, assignCategory, connectBank, syncTransactions, categories, addCategory, categoryName, deleteCategory, clearCategory, accounts, visibleTransactions, toggleAccountHidden, accountMask}}
+            value={{transactions, loading, error, refreshing, refresh, assignCategory, connectBank, syncTransactions, categories, addCategory, categoryName, deleteCategory, clearCategory, accounts, visibleTransactions, toggleAccountHidden, accountMask, disconnectBank}}
         >
             {children}
         </TransactionContext.Provider>

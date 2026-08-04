@@ -3,9 +3,9 @@ import { useTransaction } from "../context/TransactionContext";
 
 export default function TransactionDetailScreen({route}){
     const {id} = route.params;
-    const {transactions, assignCategory, categories, categoryName} = useTransaction();
+    const {transactions, assignCategory, categories, categoryName, accountMask, visibleTransactions} = useTransaction();
 
-    const transaction = transactions.find((t) => t.id === id)
+    const transaction = visibleTransactions.find((t) => t.id === id)
 
     return (
         <View style={styles.container}>
@@ -13,6 +13,7 @@ export default function TransactionDetailScreen({route}){
             <Text style={styles.amount}>${transaction.amount.toFixed(2)}</Text>
             <Text style={styles.category}>Category: {categoryName(transaction.category_id)}</Text>
             <Text style={styles.category}>{transaction.posted_at}</Text>
+            <Text style={styles.category}>Account Ending in{accountMask(transaction.account_id) ? ` ••${accountMask(transaction.account_id)}` : ''}</Text>
 
             <View style={styles.chipRow}>
                 {categories.map((cat) => (
