@@ -79,7 +79,7 @@ export function TransactionProvider({children}){
 
     async function refresh() {
         setRefreshing(true);
-        await loadTransactions();
+        await syncTransactions({silent: true});
         setRefreshing(false);
     }
 
@@ -133,7 +133,7 @@ export function TransactionProvider({children}){
         await loadTransactions();
     }
 
-    async function syncTransactions() {
+    async function syncTransactions({silent = false} = {}) {
         const {data, error} = await supabase.functions.invoke('sync-transactions');
         if (error) {
             Alert.alert('Sync failed', "Check the function logs in Supabase");
@@ -141,7 +141,7 @@ export function TransactionProvider({children}){
         }
         await loadTransactions();
         await loadAccounts();
-        Alert.alert('Synced', `Pulled ${data.synced} transactions.`);
+        if(!silent)Alert.alert('Synced', `Pulled ${data.synced} transactions.`);
     }
 
     async function connectBank() {

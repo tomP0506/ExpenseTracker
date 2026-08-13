@@ -1,4 +1,5 @@
 import {createClient} from "https://esm.sh/@supabase/supabase-js@2";
+import { decrypt } from "../_shared/crypto.ts";
 
 
 const PLAID_CLIENT_ID = Deno.env.get("PLAID_CLIENT_ID")!;
@@ -33,13 +34,15 @@ Deno.serve(async (req) => {
       .single();
     if(!item) return Response.json({error: "Bank not found"}, {status: 404});
 
+    const accessToken = await decrypt(item.access_token);
+
     const res = await fetch(`${PLAID_BASE}/item/remove`, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
         client_id: PLAID_CLIENT_ID,
         secret: PLAID_SECRET,
-        access_token: item.access_token,
+        access_token: accessToken,
       }),
     });
 

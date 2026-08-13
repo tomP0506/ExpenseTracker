@@ -49,7 +49,7 @@ function AppContent(){
 
   if (loading){
     return (
-      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f2f2f2'}}>
         <ActivityIndicator size="large"/>
       </View>
     );

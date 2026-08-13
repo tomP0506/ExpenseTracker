@@ -80,12 +80,12 @@ export default function TransactionScreen({ navigation }){
                     <Text style={styles.totalLabel}>Uncategorized Total({uncategorized.length}):</Text>
                     <Text style={styles.totalAmount}>${uncategorizedTotal.toFixed(2)}</Text>
                 </View>
-                <Pressable style={styles.connectButton} onPress={connectBank}>
+                {/* <Pressable style={styles.connectButton} onPress={connectBank}>
                     <Text style={styles.connectButtonText}>Connect a test Bank</Text>
                 </Pressable>
                 <Pressable style={styles.connectButton} onPress={syncTransactions}>
                     <Text style={styles.connectButtonText}>Sync Transactions</Text>
-                </Pressable>
+                </Pressable> */}
             </View>
         </View>
     );

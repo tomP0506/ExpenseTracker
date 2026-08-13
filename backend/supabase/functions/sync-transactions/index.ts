@@ -1,7 +1,9 @@
 import {createClient} from "https://esm.sh/@supabase/supabase-js@2";
+import { decrypt } from "../_shared/crypto.ts";
 import { error } from "node:console";
 import { access } from "node:fs";
 import { json } from "node:stream/consumers";
+// import { drainableProtocol } from "node:stream/iter";
 import { it } from "node:test";
 
 const PLAID_CLIENT_ID = Deno.env.get("PLAID_CLIENT_ID")!;
@@ -30,51 +32,21 @@ Deno.serve(async (req) => {
       .select("id, access_token, cursor, institution_name")
       .eq("user_id", user.id);
 
-    const rows: any[] = [];
+    // const rows: any[] = [];
+    
+    let synced = 0;
+    let removed = 0;
+
     for(const item of items ?? []){
-      let cursor = item.cursor ?? undefined;
-      let hasMore = true;
-      while(hasMore){
-        const res = await fetch(`${PLAID_BASE}/transactions/sync`, {
-          method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({
-            client_id: PLAID_CLIENT_ID,
-            secret: PLAID_SECRET,
-            access_token: item.access_token,
-            cursor,
-          }),
-        });
-        const data = await res.json();
-        if(!res.ok){
-          console.error("transactions/sync failed", JSON.stringify(data));
-          return Response.json({error: data.error_message ?? "Sync failed"}, {status: 500});
-        }
-
-        for(const t of data.added){
-          rows.push({
-            external_id: t.transaction_id,
-            account_id: t.account_id,
-            user_id: user.id,
-            description: t.name,
-            amount: t.amount,
-            posted_at: t.date,
-          });
-        }
-
-        hasMore = data.hasMore;
-        cursor = data.next_cursor;
-      }
-
-      await supabaseAdmin.from("plaid_items").update({cursor}).eq("id", item.id);
-
+      const accessToken = await decrypt(item.access_token);
+      
       const acctRes = await fetch(`${PLAID_BASE}/accounts/get`,{
         method: 'POST',
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
           client_id: PLAID_CLIENT_ID,
           secret: PLAID_SECRET,
-          access_token: item.access_token,
+          access_token: accessToken,
         }),
       });
 
@@ -100,17 +72,69 @@ Deno.serve(async (req) => {
         if (acctError){
           console.error("accounts upsert:", acctError.message);
         }
-
       }
-    }
-    if (rows.length > 0){
-      const {error} = await supabaseAdmin
-        .from("transactions")
-        .upsert(rows, {onConflict: "external_id"});
-      if(error) return Response.json({error: error.message}, {status: 500});
+
+      let cursor = item.cursor ?? undefined;
+      let hasMore = true;
+
+      while(hasMore){
+        const res = await fetch(`${PLAID_BASE}/transactions/sync`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            client_id: PLAID_CLIENT_ID,
+            secret: PLAID_SECRET,
+            access_token: accessToken,
+            cursor,
+          }),
+        });
+        const data = await res.json();
+        if(!res.ok){
+          console.error("transactions/sync failed", JSON.stringify(data));
+          return Response.json({error: data.error_message ?? "Sync failed"}, {status: 500});
+        }
+
+        const rows = [...data.added, ...data.modified].map((t) => ({
+          external_id: t.transaction_id,
+          account_id: t.account_id,
+          user_id: user.id,
+          description: t.name,
+          amount: t.amount,
+          posted_at: t.date,
+        }))
+        const removedIds = data.removed.map((r) => r.transaction_id);
+
+        if (rows.length > 0){
+          const {error} = await supabaseAdmin
+            .from("transactions")
+            .upsert(rows, {onConflict: "external_id"});
+          if(error){
+            console.error("transactions upsert failed: ", error.message);
+            return Response.json({error: error.message}, {status: 500});
+          }
+          synced += rows.length
+        }
+
+        if(removedIds.length > 0){
+          const {error} = await supabaseAdmin.from("transactions").delete()
+            .in("external_id", removedIds).eq("user_id", user.id);
+          if(error){
+            console.error("transaction delete failed", error.message);
+            return Response.json({error: error.message}, {status: 500});
+          }
+          removed += removedIds.length;
+        }
+        
+        await supabaseAdmin.from("plaid_items").update({cursor: data.next_cursor}).eq("id", item.id);
+
+        hasMore = data.has_more;
+        cursor = data.next_cursor;
+      }
+
+      
     }
 
-    return Response.json({synced: rows.length});
+    return Response.json({synced, removed});
   } catch(e) {
     console.error("sync error:", String(e));
     return Response.json({error: String(e)}, {status: 500});

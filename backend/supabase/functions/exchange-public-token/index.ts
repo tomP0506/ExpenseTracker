@@ -1,4 +1,5 @@
 import {createClient} from "https://esm.sh/@supabase/supabase-js@2";
+import { encrypt } from "../_shared/crypto.ts";
 import { error } from "node:console";
 
 const PLAID_CLIENT_ID = Deno.env.get("PLAID_CLIENT_ID")!;
@@ -39,7 +40,7 @@ Deno.serve(async (req) => {
 
     const {error} = await supabaseAdmin.from("plaid_items").insert({
       user_id: user.id,
-      access_token: exData.access_token,
+      access_token: await encrypt(exData.access_token),
       item_id: exData.item_id,
       institution_name: institution || "Bank",
     });

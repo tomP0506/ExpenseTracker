@@ -3,6 +3,9 @@ import { Modal, View, Pressable, Text, StyleSheet, Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { supabase, SUPABASE_URL } from '../lib/supabase';
 import { useTransaction } from '../context/TransactionContext';
+import { useAuth } from '../context/AuthContext';
+
+const CONSENT_VERS = '1';
 
 function linkHtml(token){
     return `<!DOCTYPE html><html>
@@ -30,6 +33,26 @@ export default function LinkBank(){
     const {syncTransactions} = useTransaction();
     const [linkToken, setLinkToken] = useState();
     const [busy, setBusy] = useState(false);
+    const {session} = useAuth();
+    const consented = session?.user?.user_metadata?.consent_version === CONSENT_VERS;
+    const [showConsent, setShowConsent] = useState(false);
+    
+    function handleLinkPress(){
+        if(consented) startLink();
+        else setShowConsent(true);
+    }   
+
+    async function agreeAndLink() {
+        const {error} = await supabase.auth.updateUser({
+            data: {consent_version: CONSENT_VERS, consent_at: new Date().toISOString() },
+        });
+        if(error){
+            Alert.alert('Could not save consent', error.message);
+            return;
+        }
+        setShowConsent(false);
+        startLink();
+    }
 
     async function startLink() {
         setBusy(true);
@@ -70,10 +93,31 @@ export default function LinkBank(){
 
     return (
         <View>
-            <Pressable style={styles.button} onPress={startLink} disabled={busy}>
+            <Pressable style={styles.button} onPress={handleLinkPress} disabled={busy}>
                 <Text style={styles.buttonText}>{busy ? 'Working...' : 'Link a bank'}</Text>
             </Pressable>
 
+            <Modal visible={showConsent} animationType="slide" transparent onRequestClose={() => setShowConsent(false)}>
+                <View style={styles.consentBackdrop}>
+                    <View style={styles.consentCard}>
+                        <Text style={styles.consentTitle}>Before you connect a bank</Text>
+                        <Text style={styles.consentBody}>
+                            To show and categorize your spending, this app will access your account
+                            details, balances, and transaction history from the bank you link, through
+                            our provider Plaid.{"\n\n"}
+                            This data is stored securely (encrypted, on our server) and used only inside
+                            this app. Access is read-only — it can never move money. You can disconnect a
+                            bank at any time to delete its data.
+                        </Text>
+                        <Pressable style={styles.button} onPress={agreeAndLink}>
+                            <Text style={styles.buttonText}>I Agree & Continue</Text>
+                        </Pressable>
+                        <Pressable style={styles.consentCancel} onPress={() => setShowConsent(false)}>
+                            <Text style={styles.consentCancelText}>Cancel</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </Modal>
             <Modal visible={!!linkToken} animationType="slide" onRequestClose={() => setLinkToken(null)}>
                 <View style={{flex: 1}}>
                     <Pressable style={styles.cancel} onPress={() => setLinkToken(null)}>
@@ -110,5 +154,36 @@ const styles = StyleSheet.create({
     cancelText: {
         color: '#4a6da7',
         fontSize: 16,
-    }
+    },
+    consentBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        padding: 24,
+    },
+    consentCard: {
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 24,
+    },
+    consentTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        marginBottom: 12,
+    },
+    consentBody: {
+        fontSize: 12,
+        lineHeight: 22,
+        color: '#333',
+        marginBottom: 20,
+    },
+    consentCancel: {
+        padding: 12,
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    consentCancelText: {
+        color: '#4a6da7',
+        fontSize: 15,
+    },
 });
