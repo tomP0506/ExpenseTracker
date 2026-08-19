@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, FlatList, Pressable, ActivityIndicator } from 'react-native';
 import { useTransaction } from '../context/TransactionContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Platform  } from 'react-native';
 
 import Animated, {FadeOut, LinearTransition, FadeIn} from 'react-native-reanimated';
 
@@ -80,6 +81,11 @@ export default function TransactionScreen({ navigation }){
                     <Text style={styles.totalLabel}>Uncategorized Total({uncategorized.length}):</Text>
                     <Text style={styles.totalAmount}>${uncategorizedTotal.toFixed(2)}</Text>
                 </View>
+                {Platform.OS === 'web' && (
+                    <Pressable style={styles.connectButton} onPress={() => syncTransactions()}>
+                        <Text style={styles.connectButtonText}>Sync</Text>
+                    </Pressable>
+                )}
                 {/* <Pressable style={styles.connectButton} onPress={connectBank}>
                     <Text style={styles.connectButtonText}>Connect a test Bank</Text>
                 </Pressable>

@@ -5,13 +5,14 @@ import { access } from "node:fs";
 import { json } from "node:stream/consumers";
 // import { drainableProtocol } from "node:stream/iter";
 import { it } from "node:test";
+import { withCors } from "../_shared/cors.ts";
 
 const PLAID_CLIENT_ID = Deno.env.get("PLAID_CLIENT_ID")!;
 const PLAID_SECRET = Deno.env.get("PLAID_SECRET")!;
 const PLAID_ENV = Deno.env.get("PLAID_ENV") ?? "sandbox";
 const PLAID_BASE = `https://${PLAID_ENV}.plaid.com`;
 
-Deno.serve(async (req) => {
+Deno.serve(withCors(async (req) => {
   try{
     const authHeader = req.headers.get("Authorization") ?? "";
     const supabaseAuth = createClient(
@@ -139,4 +140,4 @@ Deno.serve(async (req) => {
     console.error("sync error:", String(e));
     return Response.json({error: String(e)}, {status: 500});
   }
-})
+}));

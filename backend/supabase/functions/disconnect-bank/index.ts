@@ -1,5 +1,6 @@
 import {createClient} from "https://esm.sh/@supabase/supabase-js@2";
 import { decrypt } from "../_shared/crypto.ts";
+import { withCors } from "../_shared/cors.ts";
 
 
 const PLAID_CLIENT_ID = Deno.env.get("PLAID_CLIENT_ID")!;
@@ -7,7 +8,7 @@ const PLAID_SECRET = Deno.env.get("PLAID_SECRET")!;
 const PLAID_ENV = Deno.env.get("PLAID_ENV") ?? "sandbox";
 const PLAID_BASE = `https://${PLAID_ENV}.plaid.com`;
 
-Deno.serve(async (req) => {
+Deno.serve(withCors(async (req) => {
   try{
     const authHeader = req.headers.get("Authorization") ?? "";
     const supabaseAuth = createClient(
@@ -86,4 +87,4 @@ Deno.serve(async (req) => {
     console.error("disconnect error:", String(e));
     return Response.json({error: String(e)}, {status: 500});
   }
-});
+}));

@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, Pressable, SectionList, Switch, Alert } from "react-native";
 import { supabase } from "../lib/supabase";
 import { useTransaction } from "../context/TransactionContext";
+import { confirmAction } from "../lib/dialog";
 import LinkBank from "./LinkBank";
 
 export default function AccountScreen(){
@@ -16,14 +17,11 @@ export default function AccountScreen(){
 
     function confirmDisconnect(section){
         const itemIds = [...new Set(section.data.map((a) => a.item_id))];
-        Alert.alert(
+       confirmAction(
             'Disconnect bank',
             `Remove ${section.title} and all its accounts and transactions?`,
-            [
-                {text: 'Cancel', style: 'cancel'},
-                {text: 'Disconnect', style: 'destructive',
-                onPress: () => itemIds.forEach((id) => disconnectBank(id))}
-            ]
+            () => itemIds.forEach((id) => disconnectBank(id)),
+            'Disconnect'
         );
     }
 

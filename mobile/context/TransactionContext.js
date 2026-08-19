@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useMemo } from "react";
 import { Alert } from "react-native";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../lib/supabase";
 import { supabase } from "../lib/supabase";
+import { notify } from "../lib/dialog";
 
 const TransactionContext = createContext();
 
@@ -42,7 +43,7 @@ export function TransactionProvider({children}){
             .eq('id', account.id);
         
         if (error){
-            Alert.alert('Could not update', error.message);
+            notify('Could not update', error.message);
             return;
         }
         await loadAccounts()
@@ -61,7 +62,7 @@ export function TransactionProvider({children}){
     async function clearCategory(categoryId) {
         const {error} = await supabase.from('transactions').delete().eq('category_id', categoryId);
         if(error){
-            Alert.alert('Could not clear', error.message);
+            notify('Could not clear', error.message);
             return;
         }
 
@@ -86,12 +87,12 @@ export function TransactionProvider({children}){
     async function addCategory(name) {
         const {data} = await supabase.from('categories').select('id').eq('name', name);
         if(data &&  data.length > 0){
-            Alert.alert('Name already exists');
+            notify('Name already exists');
             return;
         }
         const {error} = await supabase.from('categories').insert({name});
         if(error){
-            Alert.alert('Could not add category', error.message);
+            notify('Could not add category', error.message);
             return;
         }
         await loadCategories();
@@ -112,7 +113,7 @@ export function TransactionProvider({children}){
 
         if (error) {
             setTransactions(previousTransactions);
-            Alert.alert('Could not save', 'Your save was undone. Please try again.');
+            notify('Could not save', 'Your save was undone. Please try again.');
         }
 
         
@@ -126,7 +127,7 @@ export function TransactionProvider({children}){
     async function deleteCategory(id) {
         const {error} = await supabase.from('categories').delete().eq('id', id);
         if (error){
-            Alert.alert('Could not delete category', error.message);
+            notify('Could not delete category', error.message);
             return;
         }
         await loadCategories();
@@ -136,18 +137,18 @@ export function TransactionProvider({children}){
     async function syncTransactions({silent = false} = {}) {
         const {data, error} = await supabase.functions.invoke('sync-transactions');
         if (error) {
-            Alert.alert('Sync failed', "Check the function logs in Supabase");
+            notify('Sync failed', "Check the function logs in Supabase");
             return;
         }
         await loadTransactions();
         await loadAccounts();
-        if(!silent)Alert.alert('Synced', `Pulled ${data.synced} transactions.`);
+        if(!silent) notify('Synced', `Pulled ${data.synced} transactions.`);
     }
 
     async function connectBank() {
         const {data, error} = await supabase.functions.invoke('plaid-link-sandbox');
         if (error) {
-            Alert.alert('Connection failed', 'Check the function logs in Supabase for details');
+            notify('Connection failed', 'Check the function logs in Supabase for details');
             return;
         }
         await syncTransactions();
@@ -159,7 +160,7 @@ export function TransactionProvider({children}){
         });
         // console.log('disconnect ->', {itemId, data, error}); // TEMP
         if (error) {
-            Alert.alert('Could not disconnect', 'Check the function logs in supabase.');
+            notify('Could not disconnect', 'Check the function logs in supabase.');
             return;
         }
         await Promise.all([loadAccounts(), loadTransactions()]);
