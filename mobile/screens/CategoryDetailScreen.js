@@ -1,6 +1,7 @@
 import {useLayoutEffect} from 'react';
 import { StyleSheet, Text, View, FlatList, Pressable, Alert } from 'react-native';
 import { useTransaction } from '../context/TransactionContext';
+import { confirmAction } from '../lib/dialog';
 
 export default function CategoryDetailScreen({route, navigation}){
     const {categoryId} = route.params;
@@ -15,20 +16,16 @@ export default function CategoryDetailScreen({route, navigation}){
     }, [navigation, name]);
 
     function confirmClear(){
-        if(section.data.length === 0) return;
+        if(charges.length === 0) return;
 
-        Alert.alert(
-            `Clear ${section.title}?`,
-            `This permenantly deletes ${section.data.length} charge(s).`,
-            [
-                {text: 'Cancel', style: 'cancel'},
-                {text: 'Clear', style: 'destructive', 
-                    onPress: () => {
-                        clearCategory(categoryId);
-                        navigation.goBack();
-                    },
-                },
-            ]
+        confirmAction(
+            `Clear ${name}?`,
+            `This permenantly deletes ${charges.length} charge(s).`,
+            () => {
+                clearCategory(categoryId);
+                navigation.goBack();
+            },
+            'Clear'
         );
     }
 

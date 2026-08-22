@@ -19,6 +19,9 @@ Deno.serve(withCors(async (req) => {
     const {data: {user}} = await supabaseAuth.auth.getUser();
     if(!user) return Response.json({error: "Not authenticated"}, {status: 401});
 
+    const reqBody = await req.json().catch(() => ({}));
+    const redirectUri = reqBody?.redirect_uri;
+
     const res = await fetch(`${PLAID_BASE}/link/token/create`, {
       method: "POST",
       headers: { "Content-Type": "application/json"},
@@ -27,9 +30,11 @@ Deno.serve(withCors(async (req) => {
         secret: PLAID_SECRET,
         user: {client_user_id: user.id},
         client_name: "Expense Tracker",
+        transactions: {days_requested: 200},
         products: ["transactions"],
         country_codes: ["US"],
         language: "en",
+        ...(redirectUri ? { redirect_uri: redirectUri} : {}),
       }),
     });
 

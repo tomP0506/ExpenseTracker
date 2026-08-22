@@ -179,7 +179,7 @@ export function TransactionProvider({children}){
         const hiddenIds = accounts.filter((a) => a.hidden).map((a) => a.account_id);
         return transactions
             .filter((t) => !hiddenIds.includes(t.account_id))
-            .map((t) => (typeById[t.account_id] === 'depository' ? {...t, amount: -t.amount} : t))
+            // .map((t) => (typeById[t.account_id] === 'depository' ? {...t, amount: -t.amount} : t))
     }, [transactions, accounts]);
 
 

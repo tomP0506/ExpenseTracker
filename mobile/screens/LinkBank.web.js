@@ -10,11 +10,17 @@ import { notify } from '../lib/dialog';
 const CONSENT_VERS = '1';
 
 function PlaidLauncher({token, onSuccess, onExit}){
-    const {open, ready, error} = usePlaidLink({token, onSuccess, onExit});
+    const isOAuthReturn = window.location.search.includes('oauth_state_id');
+    const {open, ready, error} = usePlaidLink({
+        token, 
+        onSuccess, 
+        onExit,
+        receivedRedirectUri: isOAuthReturn ? window.location.href : undefined
+    });
     useEffect(() => {
         console.log('plaid launcher ', {ready, error, hasToken: !!token});
         if (ready) open();
-    }, [ready, error, open, token]);
+    }, [ready, open,]);
     return null;
 }
 
@@ -29,15 +35,24 @@ export default function LinkBank(){
 
     async function startLink() {
         setBusy(true);
-        const {data, error} = await supabase.functions.invoke('create-link-token');
+        const {data, error} = await supabase.functions.invoke('create-link-token', {
+            body: { redirect_uri: window.location.origin + '/'},
+        } );
         setBusy(false);
-        console.log('Create-link-token ', {data, error});
         if (error || !data?.link_token){
             notify('Could not start linking', 'Check the function logs');
             return;
         }
+        localStorage.setItem('plaid_link_token', data.link_token);
         setLinkToken(data.link_token);
     }
+
+    useEffect(() => {
+        if(window.location.search.includes('oauth_state_id')) {
+            const stored = localStorage.getItem('plaid_link_token');
+            if (stored) setLinkToken(stored);
+        }
+    }, []);
 
     function handleLinkPress(){
         if (consented) startLink();
@@ -58,6 +73,8 @@ export default function LinkBank(){
 
     async function finishLink(publicToken, institution) {
         setLinkToken(null);
+        localStorage.removeItem('plaid_link_token');
+        window.history.replaceState({}, '', '/');
         const {error} = await supabase.functions.invoke('exchange-public-token', {
             body: {public_token: publicToken, institution},
         });
@@ -81,7 +98,11 @@ export default function LinkBank(){
                     onSuccess={(public_token, metadata) => 
                         finishLink(public_token, metadata.institution?.name ?? '')
                     }
-                    onExit={() => setLinkToken(null)}
+                    onExit={() => {
+                        setLinkToken(null);
+                        localStorage.removeItem('plaid_link_token');
+                        window.history.replaceState({}, '', '/');
+                    }}
                 />
             )}
 

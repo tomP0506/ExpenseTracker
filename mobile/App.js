@@ -2,6 +2,7 @@ import { View, ActivityIndicator } from "react-native";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import {createBottomTabNavigator} from "@react-navigation/bottom-tabs";
+import { useFonts } from 'expo-font'
 import { Ionicons } from "@expo/vector-icons";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -27,7 +28,7 @@ const navTheme ={
 
 function TransactionsStack(){
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={{headerTintColor: '#4a6da7'}}>
       <Stack.Screen name="Transactions" component={TransactionScreen} />
       <Stack.Screen name="TransactionDetail" component={TransactionDetailScreen} />
     </Stack.Navigator>
@@ -36,7 +37,7 @@ function TransactionsStack(){
 
 function CategoryStack(){
   return (
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={{headerTintColor: '#4a6da7'}}>
       <Stack.Screen name="CategoriesList" component={CategoriesScreen} options={{title: 'Categories'}} />
       <Stack.Screen name="CategoryDetail" component={CategoryDetailScreen}/>
       <Stack.Screen name="TransactionDetail" component={TransactionDetailScreen}/>
@@ -94,6 +95,16 @@ function AppContent(){
 }
 
 export default function App(){
+  const [fontsLoaded, fontError] = useFonts(Ionicons.font);
+
+  if(!fontsLoaded && !fontError){
+    return (
+      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f2f2f2'}}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
   return(
     <AuthProvider>
       <AppContent />

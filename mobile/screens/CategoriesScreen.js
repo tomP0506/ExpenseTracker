@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, Pressable, FlatList, Alert } from "react-native";
 import { useTransaction } from '../context/TransactionContext';
 import { Ionicons } from '@expo/vector-icons';
+import { confirmAction } from '../lib/dialog';
 
 export default function CategoriesScreen({navigation}) {
     const {transactions, categories, addCategory, deleteCategory, visibleTransactions } = useTransaction();
@@ -15,13 +16,11 @@ export default function CategoriesScreen({navigation}) {
     }
 
     function confirmDelete(category){
-        Alert.alert(
+        confirmAction(
             `Delete ${category.name}?`,
             `Charges in this category will become uncategorized`,
-            [
-                {text: 'Cancel', style: 'cancel'},
-                {text: 'Delete', style: 'destructive', onPress: () => deleteCategory(category.id)},
-            ]
+            () => deleteCategory(category.id),
+            'Delete'
         );
     }
 
