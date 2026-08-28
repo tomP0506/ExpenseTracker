@@ -166,6 +166,56 @@ export function TransactionProvider({children}){
         await Promise.all([loadAccounts(), loadTransactions()]);
     }
 
+    async function splitTransaction(id, enteredAmount) {
+        const parent = transactions.find((t) => t.id === id);
+        if(!parent) return false;
+
+        const total = Math.abs(parent.amount);
+        const part = Math.abs(Number(enteredAmount));
+
+        if(!Number.isFinite(part) || part <= 0 || part >= total){
+            notify('Invalid amount', `Enter an amount between 0 and ${total.toFixed(2)}.`);
+            return false;
+        }
+
+        const sign = parent.amount < 0 ? -1 : 1;
+        const partAmount = sign * (Math.round(part * 100) / 100);
+        const restAmount = sign * (Math.round((total - part) * 100) / 100);
+
+        const shared = {
+            parent_id: parent.id,
+            account_id: parent.account_id,
+            user_id: parent.user_id,
+            posted_at: parent.posted_at,
+            external_id: null,
+            category_id: null,
+        };
+
+        const {error} = await supabase.from('transactions').insert([
+            {...shared, description: `${parent.description} (1)`, amount: partAmount},
+            {...shared, description: `${parent.description} (2)`, amount: restAmount}
+        ]);
+        if(error) {
+            notify('Could not be split', error.message);
+            return false;
+        }
+
+        await supabase.from('transactions').update({category_id: null}).eq('id', parent.id);
+
+        await loadTransactions();
+        return true;
+    }
+
+    async function unsplitTransaction(parentId) {
+        const {error} = await supabase.from('transactions').delete().eq('parent_id', parentId); 
+        if(error){
+            notify('Could not undo split', error.message);
+            return false;
+        }
+        await loadTransactions();
+        return true;
+    }
+
     // const accountTypeById = Object.fromEntries(accounts.map((a) => [a.account_id, a.type]));
     // const normalized = transactions.map((t) => 
     //     accountTypeById[t.account_id] === 'depository' ? { ...t, amount: -t.amount} : t
@@ -177,15 +227,19 @@ export function TransactionProvider({children}){
     const visibleTransactions = useMemo(() => {
         const typeById = Object.fromEntries(accounts.map((a) => [a.account_id, a.type]));
         const hiddenIds = accounts.filter((a) => a.hidden).map((a) => a.account_id);
+        const splitParentIds = new Set(
+            transactions.filter((t) => t.parent_id != null).map((t) => t.parent_id)
+        );
         return transactions
             .filter((t) => !hiddenIds.includes(t.account_id))
+            .filter((t) => !splitParentIds.has(t.id))
             // .map((t) => (typeById[t.account_id] === 'depository' ? {...t, amount: -t.amount} : t))
     }, [transactions, accounts]);
 
 
     return (
         <TransactionContext.Provider
-            value={{transactions, loading, error, refreshing, refresh, assignCategory, connectBank, syncTransactions, categories, addCategory, categoryName, deleteCategory, clearCategory, accounts, visibleTransactions, toggleAccountHidden, accountMask, disconnectBank}}
+            value={{transactions, loading, error, refreshing, refresh, assignCategory, connectBank, syncTransactions, categories, addCategory, categoryName, deleteCategory, clearCategory, accounts, visibleTransactions, toggleAccountHidden, accountMask, disconnectBank, splitTransaction, unsplitTransaction}}
         >
             {children}
         </TransactionContext.Provider>
