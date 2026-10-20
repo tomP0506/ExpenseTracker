@@ -25,7 +25,7 @@ function PlaidLauncher({token, onSuccess, onExit}){
 }
 
 export default function LinkBank(){
-    const {syncTransactions} = useTransaction();
+    const {syncTransactions, reauthItemIds, accounts} = useTransaction();
     const {session} = useAuth();
     const consented = session?.user?.user_metadata?.consent_version === CONSENT_VERS;
 
@@ -33,10 +33,10 @@ export default function LinkBank(){
     const [busy, setBusy] = useState(false);
     const [showConsent, setShowConsent] = useState(false);
 
-    async function startLink() {
+    async function startLink(itemId) {
         setBusy(true);
         const {data, error} = await supabase.functions.invoke('create-link-token', {
-            body: { redirect_uri: window.location.origin + '/'},
+            body: { redirect_uri: window.location.origin + '/', item_id: itemId},
         } );
         setBusy(false);
         if (error || !data?.link_token){
@@ -44,6 +44,8 @@ export default function LinkBank(){
             return;
         }
         localStorage.setItem('plaid_link_token', data.link_token);
+        if (itemId) localStorage.setItem('plaid_update_item', itemId);
+        else localStorage.removeItem('plaid_update_item');
         setLinkToken(data.link_token);
     }
 
@@ -53,6 +55,13 @@ export default function LinkBank(){
             if (stored) setLinkToken(stored);
         }
     }, []);
+
+    function clearLinkState(){
+        setLinkToken(null);
+        localStorage.removeItem('plaid_link_token');
+        localStorage.removeItem('plaid_update_item');
+        window.history.replaceState({}, '', '/');
+    }
 
     function handleLinkPress(){
         if (consented) startLink();
@@ -72,9 +81,15 @@ export default function LinkBank(){
     }
 
     async function finishLink(publicToken, institution) {
-        setLinkToken(null);
-        localStorage.removeItem('plaid_link_token');
-        window.history.replaceState({}, '', '/');
+        const updateItemId = localStorage.getItem('plaid_update_item');
+        clearLinkState();
+        
+        if (updateItemId) {
+            await syncTransactions({silent: true});
+            notify('Bank reconnected', `${institution || 'Your bank'} is syncing again`);
+            return;
+        }
+        
         const {error} = await supabase.functions.invoke('exchange-public-token', {
             body: {public_token: publicToken, institution},
         });
@@ -88,6 +103,17 @@ export default function LinkBank(){
 
     return (
         <View>
+            {reauthItemIds.map((itemId) => {
+                const bank = accounts.find((a) => a.item_id === itemId)?.institution_name ?? 'A bank';
+                return (
+                    <View key={itemId} style={styles.reauthCard}>
+                        <Text style={styles.reauthText}>{bank} needs you to sign in again.</Text>
+                        <Pressable style={styles.button} onPress={() => startLink(itemId)} disabled={busy}>
+                            <Text style={styles.buttonText}>Reconnect</Text>
+                        </Pressable>
+                    </View>
+                );
+            })}
             <Pressable style={styles.button} onPress={handleLinkPress} disabled={busy}>
                 <Text style={styles.buttonText}>{busy ? 'Working...': 'Link a bank'}</Text>
             </Pressable>
@@ -98,10 +124,15 @@ export default function LinkBank(){
                     onSuccess={(public_token, metadata) => 
                         finishLink(public_token, metadata.institution?.name ?? '')
                     }
-                    onExit={() => {
-                        setLinkToken(null);
-                        localStorage.removeItem('plaid_link_token');
-                        window.history.replaceState({}, '', '/');
+                    onExit={(err, metadata) => {
+                        if (err) {
+                            console.error('Plaid exit error', err, metadata);
+                            notify(
+                                `Plaid: ${err.error_code}`,
+                                `${err.display_message || err.error_message}\n\nrequest id: ${metadata.request_id}`
+                            );
+                        }
+                        clearLinkState();
                     }}
                 />
             )}
@@ -180,6 +211,17 @@ const styles = StyleSheet.create({
     consentCancelText: {
         color: '#4a6da7',
         fontSize: 15,
+    },
+    reauthCard: {
+        backgroundColor: '#fdecea',
+        borderRadius: 14,
+        padding: 14,
+        marginBottom: 12,
+    },
+    reauthText: {
+        color: '#8a1c12',
+        fontSize: 14,
+        marginBottom: 10,
     },
 });
 

@@ -6,13 +6,14 @@ import { useFonts } from 'expo-font'
 import { Ionicons } from "@expo/vector-icons";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import { TransactionProvider } from "./context/TransactionContext";
+import { TransactionProvider, useTransaction } from "./context/TransactionContext";
 import AuthScreen from "./screens/AuthScreens";
 import TransactionScreen from "./screens/TransactionScreen";
 import TransactionDetailScreen from "./screens/TransactionDetailScreen";
 import CategoriesScreen from "./screens/CategoriesScreen";
 import AccountScreen from "./screens/AccountScreen";
 import CategoryDetailScreen from "./screens/CategoryDetailScreen";
+import ReviewScreen from "./screens/ReviewScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -24,6 +25,15 @@ const navTheme ={
     background: '#f2f2f2'
     // background: '#ffffff'
   }
+}
+
+function ReviewStack(){
+  return (
+    <Stack.Navigator screenOptions={{headerTintColor: '#4a6da7'}}>
+      <Stack.Screen name="ReviewList" component={ReviewScreen} options={{title: 'Review'}} />
+      <Stack.Screen name="TransactionDetail" component={TransactionDetailScreen}/>
+    </Stack.Navigator>
+  )
 }
 
 function TransactionsStack(){
@@ -45,6 +55,49 @@ function CategoryStack(){
   )
 }
 
+function MainTabs(){
+  const {needsReview} =useTransaction();
+
+  return (
+    <Tab.Navigator screenOptions={{headerShown:false}}>
+      {/* ...TransactionsTab unchanged... */}
+      <Tab.Screen
+        name="TransactionsTab"
+        component={TransactionsStack}
+        options={{
+          title: "Transactions",
+          tabBarIcon: ({color, size}) => <Ionicons name="list" color={color} size={size}/>
+        }}
+      />
+      <Tab.Screen
+        name="ReviewTab"
+        component={ReviewStack}
+        options={{
+          title: "Review",
+          tabBarBadge: needsReview.length > 0 ? needsReview.length: undefined,
+          tabBarIcon: ({color, size}) => <Ionicons name="checkmark-done" color={color} size={size}/>
+        }}
+      />
+      <Tab.Screen
+        name="CategoriesTab"
+        component={CategoryStack}
+        options={{
+          title: "Categories",
+          tabBarIcon: ({color, size}) => <Ionicons name="pricetags" color={color} size={size}/>
+        }}
+      />
+      <Tab.Screen
+        name="Account"
+        component={AccountScreen}
+        options={{
+          headerShown: true,
+          tabBarIcon: ({color, size}) => <Ionicons name="person" color={color} size={size}/>
+        }}
+      />
+    </Tab.Navigator>
+  )
+}
+
 function AppContent(){
   const {session, loading} = useAuth();
 
@@ -63,32 +116,7 @@ function AppContent(){
   return (
     <TransactionProvider>
       <NavigationContainer theme={navTheme}>
-        <Tab.Navigator screenOptions={{headerShown: false}}>
-          <Tab.Screen
-            name="TransactionsTab"
-            component={TransactionsStack}
-            options={{
-              title: "Transactions",
-              tabBarIcon: ({color, size}) => <Ionicons name="list" color={color} size={size}/>
-            }}
-          />
-          <Tab.Screen
-            name="CategoriesTab"
-            component={CategoryStack}
-            options={{
-              title: "Categories",
-              tabBarIcon: ({color, size}) => <Ionicons name="pricetags" color={color} size={size}/>
-            }}
-          />
-          <Tab.Screen
-            name="Account"
-            component={AccountScreen}
-            options={{
-              headerShown: true,
-              tabBarIcon: ({color, size}) => <Ionicons name="person" color={color} size={size}/>
-            }}
-          />
-        </Tab.Navigator>
+        <MainTabs />
       </NavigationContainer>
     </TransactionProvider>
   );

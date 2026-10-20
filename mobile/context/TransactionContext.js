@@ -13,6 +13,15 @@ export function TransactionProvider({children}){
     const [error, setError] = useState(null);
     const [categories, setCategories] = useState([]);
     const [accounts, setAccounts] = useState([]);
+    const [reauthItemIds, setReauthItemIds] = useState([]);
+
+    async function loadReauthItems() {
+        const {data, error} = await supabase
+            .from('plaid_items')
+            .select('item_id')
+            .eq('needs_reauth', true);
+        if (!error) setReauthItemIds(data.map((i) => i.item_id));
+    }
 
     async function loadAccounts() {
         const {data, error} = await supabase.from('accounts').select('*').order('name').order('id');
@@ -72,7 +81,7 @@ export function TransactionProvider({children}){
     useEffect(() => {
         async function initialLoad() {
             setLoading(true);
-            await Promise.all([loadTransactions(),loadCategories(), loadAccounts()]);
+            await Promise.all([loadTransactions(),loadCategories(), loadAccounts(), loadReauthItems()]);
             setLoading(false);
         }
         initialLoad();
@@ -103,12 +112,12 @@ export function TransactionProvider({children}){
 
         //optimistic
         setTransactions(
-            transactions.map((t) => (t.id == id ? { ...t, category_id: categoryId} : t))
+            transactions.map((t) => (t.id == id ? { ...t, category_id: categoryId, suggested_category_id: null } : t))
         );
 
         const {error} = await supabase
             .from('transactions')
-            .update({category_id: categoryId})
+            .update({category_id: categoryId, suggested_category_id: null})
             .eq('id', id);
 
         if (error) {
@@ -142,6 +151,7 @@ export function TransactionProvider({children}){
         }
         await loadTransactions();
         await loadAccounts();
+        await loadReauthItems();
         if(!silent) notify('Synced', `Pulled ${data.synced} transactions.`);
     }
 
@@ -163,7 +173,7 @@ export function TransactionProvider({children}){
             notify('Could not disconnect', 'Check the function logs in supabase.');
             return;
         }
-        await Promise.all([loadAccounts(), loadTransactions()]);
+        await Promise.all([loadAccounts(), loadTransactions(), loadReauthItems()]);
     }
 
     async function splitTransaction(id, enteredAmount) {
@@ -216,6 +226,8 @@ export function TransactionProvider({children}){
         return true;
     }
 
+    
+
     // const accountTypeById = Object.fromEntries(accounts.map((a) => [a.account_id, a.type]));
     // const normalized = transactions.map((t) => 
     //     accountTypeById[t.account_id] === 'depository' ? { ...t, amount: -t.amount} : t
@@ -236,10 +248,37 @@ export function TransactionProvider({children}){
             // .map((t) => (typeById[t.account_id] === 'depository' ? {...t, amount: -t.amount} : t))
     }, [transactions, accounts]);
 
+    const needsReview = useMemo(
+        () => visibleTransactions.filter(
+            (t) => t.category_id === null && t.suggested_category_id != null
+        ),
+        [visibleTransactions]
+    );
+
+    async function keepAllSuggested() {
+        const idsByCategory = {};
+        for (const t of needsReview) {
+            if (!idsByCategory[t.suggested_category_id]) idsByCategory[t.suggested_category_id] = [];
+            idsByCategory[t.suggested_category_id].push(t.id);
+        }
+
+        const results = await Promise.all(
+            Object.entries(idsByCategory).map(([categoryId, ids]) => 
+                supabase
+                    .from('transactions')
+                    .update({category_id: Number(categoryId), suggested_category_id: null})
+                    .in('id', ids)
+            )
+        );
+
+        const failed = results.find((r) => r.error);
+        if (failed) notify('Could not keep categories', failed.error.message);
+        await loadTransactions();
+    }
 
     return (
         <TransactionContext.Provider
-            value={{transactions, loading, error, refreshing, refresh, assignCategory, connectBank, syncTransactions, categories, addCategory, categoryName, deleteCategory, clearCategory, accounts, visibleTransactions, toggleAccountHidden, accountMask, disconnectBank, splitTransaction, unsplitTransaction}}
+            value={{transactions, loading, error, refreshing, refresh, assignCategory, connectBank, syncTransactions, categories, addCategory, categoryName, deleteCategory, clearCategory, accounts, visibleTransactions, toggleAccountHidden, accountMask, disconnectBank, splitTransaction, unsplitTransaction, needsReview, keepAllSuggested, reauthItemIds}}
         >
             {children}
         </TransactionContext.Provider>

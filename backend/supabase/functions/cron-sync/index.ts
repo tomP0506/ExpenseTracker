@@ -1,5 +1,6 @@
 import {createClient} from "https://esm.sh/@supabase/supabase-js@2";
 import { decrypt } from "../_shared/crypto.ts";
+import { carryOverCategories } from "../_shared/carryOver.ts";
 
 
 
@@ -77,6 +78,9 @@ Deno.serve(async (req) => {
         const data = await res.json();
         if(!res.ok) {
           console.error("sync failed for item", item.id, JSON.stringify(data));
+          if (data.error_code === "ITEM_LOGIN_REQUIRED") {
+            await admin.from("plaid_items").update({needs_reauth: true}).eq("id", item.id);
+          }
           break;
         }
 
@@ -99,13 +103,15 @@ Deno.serve(async (req) => {
           totalSynced += rows.length;
         }
 
+        await carryOverCategories(admin, item.user_id, data.added);
+
         if(removedIds.length > 0){
           const {error} = await admin.from("transactions").delete()
             .in("external_id", removedIds).eq("user_id", item.user_id);
           if(error) {console.error("delete removed for item", item.id, error.message); break;}
         }
 
-        await admin.from("plaid_items").update({cursor: data.next_cursor}).eq("id", item.id);
+        await admin.from("plaid_items").update({cursor: data.next_cursor, needs_reauth: false}).eq("id", item.id);
 
         hasMore = data.has_more;
         cursor = data.next_cursor;

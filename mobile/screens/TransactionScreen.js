@@ -32,7 +32,7 @@ export default function TransactionScreen({ navigation }){
     //     return acc;
     // }, {});
 
-    const uncategorized = visibleTransactions.filter((t) => t.category_id === null);
+    const uncategorized = visibleTransactions.filter((t) => t.category_id === null && t.suggested_category_id == null);
     const uncategorizedTotal = uncategorized.reduce((sum, t) => sum + t.amount, 0);
 
     return (
@@ -62,7 +62,7 @@ export default function TransactionScreen({ navigation }){
                                 </View>
                             </View>
                             <Text style={[styles.amount, item.amount < 0 && styles.credit]}>
-                                {item.amount < 0 ? '+' : ''}${Math.abs(item.amount.toFixed(2))}
+                                {item.amount < 0 ? '+' : ''}${Math.abs(item.amount).toFixed(2)}
                             </Text>
                         </Pressable>
                     </Animated.View>
